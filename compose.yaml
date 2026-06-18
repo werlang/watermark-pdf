@@ -1,0 +1,9 @@
+services:
+  watermark-pdf:
+    build:
+      context: .
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env

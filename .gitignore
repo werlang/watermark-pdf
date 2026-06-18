@@ -1,0 +1,11 @@
+# Python artifacts
+.venv/
+__pycache__/
+
+# Data directories
+watermarks/
+pdf/
+output/
+
+# Environment variables
+.env
