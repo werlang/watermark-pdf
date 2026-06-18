@@ -1,6 +1,6 @@
 # watermark-pdf
 
-CLI utility for applying a text or image watermark to PDF files, with the default workflow running through Docker Compose.
+CLI utility for applying a text or image watermark to PDF files through Docker Compose.
 
 It supports:
 
@@ -15,6 +15,25 @@ The source PDFs are left untouched. Watermarks are merged into new output files.
 - Docker
 - Docker Compose v2 (`docker compose`)
 
+## Setup
+
+Create a local `.env` file from `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Adjust the values in `.env` if needed:
+
+```bash
+WATERMARK_FILE=watermarks/wm-review.png
+WATERMARK_ANGLE=35
+WATERMARK_OPACITY=0.25
+WATERMARK_SCALE=1
+PDF_PATH=pdf
+OUTPUT_PATH=output
+```
+
 ## Quick Start
 
 Build the image once:
@@ -23,21 +42,16 @@ Build the image once:
 docker compose build
 ```
 
-Run the tool with Compose:
+Run the default compose command:
 
 ```bash
-docker compose run --rm watermark-pdf INPUT OUTPUT [options]
+docker compose run --rm watermark-pdf
 ```
 
-Example:
+By default, the service reads values from `.env` and runs:
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf/salas1.pdf \
-  ./output/salas1-watermarked.pdf \
-  --image ./watermarks/watermark.png \
-  --angle 315 \
-  --opacity 0.25
+python3 /app/watermark_pdf.py pdf output --image watermarks/wm-review.png --angle 35 --opacity 0.25 --image-scale 1
 ```
 
 ## Manual
@@ -50,34 +64,47 @@ docker compose build
 
 This installs the Python dependencies from `requirements.txt` inside the image. You do not need to install `pypdf` or `reportlab` locally.
 
-### 2. Watermark a single PDF with text
+### 2. Run with the defaults from `.env`
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf/profs1.pdf \
-  ./output/profs1-confidential.pdf \
-  --text "CONFIDENTIAL"
+docker compose run --rm watermark-pdf
 ```
 
-### 3. Watermark a single PDF with an image
+This processes the PDF path in `PDF_PATH` and writes to `OUTPUT_PATH`.
+
+### 3. Change the defaults through `.env`
+
+Edit `.env` to change:
+
+- `PDF_PATH`
+- `OUTPUT_PATH`
+- `WATERMARK_FILE`
+- `WATERMARK_ANGLE`
+- `WATERMARK_OPACITY`
+- `WATERMARK_SCALE`
+
+Then rerun:
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf/turmas1.pdf \
-  ./output/turmas1-review.pdf \
-  --image ./watermarks/watermark.png \
-  --angle 315 \
-  --opacity 0.25 \
-  --image-scale 0.45
+docker compose run --rm watermark-pdf
 ```
 
-### 4. Process an entire directory
+### 4. Watermark a single PDF with text
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf \
-  ./output \
-  --text "INTERNAL"
+docker compose run --rm watermark-pdf ./pdf/profs1.pdf ./output/profs1-confidential.pdf --text "CONFIDENTIAL"
+```
+
+### 5. Watermark a single PDF with an image
+
+```bash
+docker compose run --rm watermark-pdf ./pdf/turmas1.pdf ./output/turmas1-review.pdf --image ./watermarks/wm-review.png --angle 315 --opacity 0.25 --image-scale 0.45
+```
+
+### 6. Process an entire directory manually
+
+```bash
+docker compose run --rm watermark-pdf ./pdf ./output --text "INTERNAL"
 ```
 
 When the input is a directory, the script:
@@ -86,33 +113,15 @@ When the input is a directory, the script:
 - creates the output directory automatically
 - preserves the input directory structure inside the output directory
 
-### 5. Use the helper script
-
-The repo includes [run.sh](run.sh), which loads `.env` from the repository root before running Compose:
-
-```bash
-./run.sh
-```
-
-Current `.env` values look like this:
-
-```bash
-WATERMARK_FILE=./watermarks/watermark.png
-WATERMARK_ANGLE=35
-WATERMARK_OPACITY=0.25
-WATERMARK_SCALE=1
-PDF_PATH=./pdf
-```
-
-You can edit `.env` to change the default input PDF directory, watermark file, angle, or opacity without changing the script.
-
 ## Usage
 
 ### Command format
 
 ```bash
-docker compose run --rm watermark-pdf INPUT OUTPUT [options]
+docker compose run --rm watermark-pdf [INPUT OUTPUT [options]]
 ```
+
+If `INPUT` and `OUTPUT` are omitted, the service uses the values from `.env` and the compose command defined in [compose.yaml](compose.yaml).
 
 ### Positional arguments
 
@@ -145,60 +154,39 @@ CONFIDENTIAL
 - `--image-scale 0.45`
   Image watermark width relative to the page width.
 
-The `run.sh` wrapper also forwards `WATERMARK_SCALE` to `--image-scale`.
-
 ## Examples
 
 ### Default text watermark
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf/salas2.pdf \
-  ./output/salas2-default.pdf
+docker compose run --rm watermark-pdf ./pdf/salas2.pdf ./output/salas2-default.pdf
 ```
 
 ### Red draft mark
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf/salas3.pdf \
-  ./output/salas3-draft.pdf \
-  --text "DRAFT" \
-  --font-size 80 \
-  --angle 40 \
-  --opacity 0.16 \
-  --color 0.85,0.1,0.1
+docker compose run --rm watermark-pdf ./pdf/salas3.pdf ./output/salas3-draft.pdf --text "DRAFT" --font-size 80 --angle 40 --opacity 0.16 --color 0.85,0.1,0.1
 ```
 
 ### Soft gray review mark
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf/profs2.pdf \
-  ./output/profs2-review.pdf \
-  --text "REVIEW COPY" \
-  --opacity 0.08 \
-  --color 0.3,0.3,0.3
+docker compose run --rm watermark-pdf ./pdf/profs2.pdf ./output/profs2-review.pdf --text "REVIEW COPY" --opacity 0.08 --color 0.3,0.3,0.3
 ```
 
 ### Batch image watermark
 
 ```bash
-docker compose run --rm watermark-pdf \
-  ./pdf \
-  ./output \
-  --image ./watermarks/watermark.png \
-  --opacity 0.12 \
-  --angle 315 \
-  --image-scale 0.50
+docker compose run --rm watermark-pdf ./pdf ./output --image ./watermarks/wm-pre-launch.png --opacity 0.12 --angle 315 --image-scale 0.50
 ```
 
 ## Repo Layout
 
-- [compose.yaml](compose.yaml): Compose service definition
+- [compose.yaml](compose.yaml): Compose service definition and default command wiring
 - [Dockerfile](Dockerfile): runtime image with Python dependencies
 - [requirements.txt](requirements.txt): pinned Python dependencies
 - [watermark_pdf.py](watermark_pdf.py): CLI implementation
+- `.env.example`: sample environment values for the compose service
 - `pdf/`: sample input PDFs
 - `watermarks/`: sample watermark images
 
@@ -219,10 +207,11 @@ Install Docker Desktop or another Docker runtime that provides `docker compose`.
 
 ### `no such file or directory` for the watermark image
 
-Use the repo’s actual image path:
+Use one of the repo’s actual image paths:
 
 ```bash
-./watermarks/watermark.png
+./watermarks/wm-review.png
+./watermarks/wm-pre-launch.png
 ```
 
 ### Output file was not created

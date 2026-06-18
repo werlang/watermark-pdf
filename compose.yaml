@@ -1,9 +1,9 @@
 services:
   watermark-pdf:
-    build:
-      context: .
+    build: .
     working_dir: /app
     volumes:
       - .:/app
     env_file:
       - .env
+    command: ${PDF_PATH} ${OUTPUT_PATH} --image ${WATERMARK_FILE} --angle ${WATERMARK_ANGLE} --opacity ${WATERMARK_OPACITY} --image-scale ${WATERMARK_SCALE}
