@@ -101,6 +101,14 @@ docker compose run --rm watermark-pdf ./pdf/profs1.pdf ./output/profs1-confident
 docker compose run --rm watermark-pdf ./pdf/turmas1.pdf ./output/turmas1-review.pdf --image ./watermarks/wm-review.png --angle 315 --opacity 0.25 --image-scale 0.45
 ```
 
+### 5a. Compress the generated PDF
+
+```bash
+docker compose run --rm watermark-pdf ./pdf/turmas1.pdf ./output/turmas1-review.pdf --image ./watermarks/wm-review.png --compress --compression-quality medium
+```
+
+This writes the watermarked PDF first, then runs a Ghostscript optimization pass that can downsample and re-encode PDF content to shrink the final file.
+
 ### 6. Process an entire directory manually
 
 ```bash
@@ -121,7 +129,7 @@ When the input is a directory, the script:
 docker compose run --rm watermark-pdf [INPUT OUTPUT [options]]
 ```
 
-If `INPUT` and `OUTPUT` are omitted, the service uses the values from `.env` and the compose command defined in [compose.yaml](compose.yaml).
+If `INPUT` and `OUTPUT` are omitted, the service uses the values from `.env` and the compose command defined in `compose.yaml`.
 
 ### Positional arguments
 
@@ -153,6 +161,11 @@ CONFIDENTIAL
   Text watermark RGB color as three floats between `0` and `1`.
 - `--image-scale 0.45`
   Image watermark width relative to the page width.
+- `--compress`
+  Runs a second optimization pass with Ghostscript to materially reduce the final file size.
+- `--compression-quality medium`
+  Quality preset for `--compress`.
+  `low` aims for the smallest file, `medium` is a balanced default, `high` keeps more detail, and `max` preserves the most quality while still optimizing.
 
 ## Examples
 
@@ -180,12 +193,18 @@ docker compose run --rm watermark-pdf ./pdf/profs2.pdf ./output/profs2-review.pd
 docker compose run --rm watermark-pdf ./pdf ./output --image ./watermarks/wm-pre-launch.png --opacity 0.12 --angle 315 --image-scale 0.50
 ```
 
+### Batch image watermark with compression
+
+```bash
+docker compose run --rm watermark-pdf ./pdf ./output --image ./watermarks/wm-pre-launch.png --opacity 0.12 --angle 315 --image-scale 0.50 --compress --compression-quality low
+```
+
 ## Repo Layout
 
-- [compose.yaml](compose.yaml): Compose service definition and default command wiring
-- [Dockerfile](Dockerfile): runtime image with Python dependencies
-- [requirements.txt](requirements.txt): pinned Python dependencies
-- [watermark_pdf.py](watermark_pdf.py): CLI implementation
+- `compose.yaml` Compose service definition and default command wiring
+- `Dockerfile`: runtime image with Python dependencies
+- `requirements.txt`: pinned Python dependencies
+- `watermark_pdf.py`: CLI implementation
 - `.env.example`: sample environment values for the compose service
 - `pdf/`: sample input PDFs
 - `watermarks/`: sample watermark images
@@ -196,6 +215,8 @@ docker compose run --rm watermark-pdf ./pdf ./output --image ./watermarks/wm-pre
 - If `INPUT` is a directory, `OUTPUT` will be created if it does not exist.
 - `--color` only affects text watermarks.
 - `--image-scale` only affects image watermarks.
+- `--compress` requires Ghostscript in the container image, so rebuild with `docker compose build` after pulling these changes.
+- The exact size reduction depends on the source PDF structure and the selected `--compression-quality`.
 - The watermark image path must exist.
 - Non-PDF input files are rejected.
 

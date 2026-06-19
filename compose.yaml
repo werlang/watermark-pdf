@@ -6,4 +6,4 @@ services:
       - .:/app
     env_file:
       - .env
-    command: ${PDF_PATH} ${OUTPUT_PATH} --image ${WATERMARK_FILE} --angle ${WATERMARK_ANGLE} --opacity ${WATERMARK_OPACITY} --image-scale ${WATERMARK_SCALE}
+    command: ${PDF_PATH} ${OUTPUT_PATH} --image ${WATERMARK_FILE} --angle ${WATERMARK_ANGLE} --opacity ${WATERMARK_OPACITY} --image-scale ${WATERMARK_SCALE} --compress --compression-quality low

@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import argparse
 import io
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
@@ -16,8 +19,15 @@ from reportlab.lib.colors import Color
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
+COMPRESSION_PRESETS = {
+    "low": "/screen",
+    "medium": "/ebook",
+    "high": "/printer",
+    "max": "/prepress",
+}
 
-def parse_args() -> argparse.Namespace:
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
 
     parser = argparse.ArgumentParser(description="Add a watermark to PDF files.")
@@ -70,7 +80,18 @@ def parse_args() -> argparse.Namespace:
         default=0.45,
         help="Relative size of an image watermark compared to the page width",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--compress",
+        action="store_true",
+        help="Run an extra Ghostscript optimization pass to reduce the final PDF size",
+    )
+    parser.add_argument(
+        "--compression-quality",
+        choices=tuple(COMPRESSION_PRESETS),
+        default="medium",
+        help="Quality preset for --compress: low, medium, high, or max",
+    )
+    args = parser.parse_args(argv)
 
     if args.text is None and args.image is None:
         args.text = "CONFIDENTIAL"
@@ -241,6 +262,34 @@ def add_watermark(
         writer.write(fh)
 
 
+def compress_pdf(
+    input_pdf: Path,
+    output_pdf: Path,
+    quality: str,
+) -> None:
+    """Optimize a PDF with Ghostscript using a caller-selected quality preset."""
+
+    ghostscript = shutil.which("gs")
+    if ghostscript is None:
+        raise RuntimeError(
+            "Ghostscript is required for --compress. Rebuild the Docker image after updating the repo."
+        )
+
+    preset = COMPRESSION_PRESETS[quality]
+    command = [
+        ghostscript,
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        "-dNOPAUSE",
+        "-dQUIET",
+        "-dBATCH",
+        f"-dPDFSETTINGS={preset}",
+        f"-sOutputFile={output_pdf}",
+        str(input_pdf),
+    ]
+    subprocess.run(command, check=True)
+
+
 def iter_input_pdfs(input_path: Path):
     """Yield PDFs to process from a file or directory."""
 
@@ -263,26 +312,37 @@ def process_path(
     opacity: float,
     color: tuple[float, float, float],
     image_scale: float,
+    compress: bool,
+    compression_quality: str,
 ) -> None:
     """Process either one PDF or all PDFs under a directory."""
 
-    if input_path.is_file():
-        add_watermark(
-            input_path,
-            output_path,
-            text,
-            image,
-            font_size,
-            angle,
-            opacity,
-            color,
-            image_scale,
-        )
-        return
-
     for source_pdf, relative_name in iter_input_pdfs(input_path):
-        destination_pdf = output_path / relative_name
+        destination_pdf = output_path if input_path.is_file() else output_path / relative_name
         destination_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+        if compress:
+            # Write the watermarked PDF first, then let Ghostscript trade image
+            # quality for size using the requested preset.
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_file:
+                temp_output = Path(tmp_file.name)
+            try:
+                add_watermark(
+                    source_pdf,
+                    temp_output,
+                    text,
+                    image,
+                    font_size,
+                    angle,
+                    opacity,
+                    color,
+                    image_scale,
+                )
+                compress_pdf(temp_output, destination_pdf, compression_quality)
+            finally:
+                temp_output.unlink(missing_ok=True)
+            continue
+
         add_watermark(
             source_pdf,
             destination_pdf,
@@ -315,6 +375,8 @@ def main() -> None:
         args.opacity,
         parse_rgb(args.color),
         args.image_scale,
+        args.compress,
+        args.compression_quality,
     )
 
 
