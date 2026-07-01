@@ -101,7 +101,7 @@ docker compose run --rm watermark-pdf ./pdf/profs1.pdf ./output/profs1-confident
 docker compose run --rm watermark-pdf ./pdf/turmas1.pdf ./output/turmas1-review.pdf --image ./watermarks/wm-review.png --angle 315 --opacity 0.25 --image-scale 0.45
 ```
 
-### 5a. Compress the generated PDF
+### 6. Compress the generated PDF
 
 ```bash
 docker compose run --rm watermark-pdf ./pdf/turmas1.pdf ./output/turmas1-review.pdf --image ./watermarks/wm-review.png --compress --compression-quality medium
@@ -109,7 +109,7 @@ docker compose run --rm watermark-pdf ./pdf/turmas1.pdf ./output/turmas1-review.
 
 This writes the watermarked PDF first, then runs a Ghostscript optimization pass that can downsample and re-encode PDF content to shrink the final file.
 
-### 6. Process an entire directory manually
+### 7. Process an entire directory manually
 
 ```bash
 docker compose run --rm watermark-pdf ./pdf ./output --text "INTERNAL"
@@ -120,6 +120,12 @@ When the input is a directory, the script:
 - scans for `*.pdf` files recursively
 - creates the output directory automatically
 - preserves the input directory structure inside the output directory
+
+### 8. Compress-only for an entire directory
+
+```bash
+docker compose run --rm watermark-pdf ./pdf ./output --compress --compression-quality low
+```
 
 ## Usage
 
@@ -143,11 +149,7 @@ Choose one:
 - `--text "VALUE"`
 - `--image /path/to/file.png`
 
-If neither is provided, the default text watermark is:
-
-```text
-CONFIDENTIAL
-```
+If you do not pass `--text` or `--image`, you must pass `--compress` so the command still performs work.
 
 ### Options
 
@@ -169,10 +171,10 @@ CONFIDENTIAL
 
 ## Examples
 
-### Default text watermark
+### Compress only
 
 ```bash
-docker compose run --rm watermark-pdf ./pdf/salas2.pdf ./output/salas2-default.pdf
+docker compose run --rm watermark-pdf ./pdf/salas2.pdf ./output/salas2-compressed.pdf --compress
 ```
 
 ### Red draft mark
@@ -252,5 +254,5 @@ If you prefer not to use Docker, you can still run the script directly:
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-python3 watermark_pdf.py ./pdf ./output --text "CONFIDENTIAL"
+python3 watermark_pdf.py ./pdf ./output --compress
 ```

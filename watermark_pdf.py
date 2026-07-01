@@ -1,4 +1,4 @@
-"""Add a text or image watermark to one PDF or many PDFs.
+"""Add a watermark, compress PDFs, or do both for one PDF or many PDFs.
 
 The script creates a transparent overlay for each page, draws the watermark
 content onto that overlay, and merges it into the source document without
@@ -30,7 +30,9 @@ COMPRESSION_PRESETS = {
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
 
-    parser = argparse.ArgumentParser(description="Add a watermark to PDF files.")
+    parser = argparse.ArgumentParser(
+        description="Add a watermark to PDF files and optionally compress them."
+    )
     parser.add_argument(
         "input_path",
         type=Path,
@@ -93,10 +95,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     args = parser.parse_args(argv)
 
-    if args.text is None and args.image is None:
-        args.text = "CONFIDENTIAL"
-    if args.text is not None and args.image is not None:
-        parser.error("choose only one of --text or --image")
+    if args.text is None and args.image is None and not args.compress:
+        parser.error("choose at least one action: --compress, --text, or --image")
     if args.image is not None and not args.image.is_file():
         parser.error(f"watermark image does not exist: {args.image}")
     if not args.input_path.exists():
@@ -317,9 +317,15 @@ def process_path(
 ) -> None:
     """Process either one PDF or all PDFs under a directory."""
 
+    watermark_requested = text is not None or image is not None
+
     for source_pdf, relative_name in iter_input_pdfs(input_path):
         destination_pdf = output_path if input_path.is_file() else output_path / relative_name
         destination_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+        if compress and not watermark_requested:
+            compress_pdf(source_pdf, destination_pdf, compression_quality)
+            continue
 
         if compress:
             # Write the watermarked PDF first, then let Ghostscript trade image
